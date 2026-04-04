@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSI Live Monitor</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>CSI Live Monitor</h1>
+        <p>Latest CSI image + model outputs in near real time.</p>
+      </header>
+
+      <section class="panel image-panel">
+        <h2>Latest Image</h2>
+        <div class="image-wrap">
+          <img id="latestImage" alt="Latest CSI frame" />
+        </div>
+        <p id="imageMeta" class="muted">Waiting for data...</p>
+      </section>
+
+      <section class="panel data-panel">
+        <h2>Predictions</h2>
+        <div class="grid">
+          <article>
+            <h3>Activity API</h3>
+            <pre id="activityResult">No data yet</pre>
+          </article>
+          <article>
+            <h3>Presence API</h3>
+            <pre id="presenceResult">No data yet</pre>
+          </article>
+        </div>
+      </section>
+
+      <footer class="footer muted">
+        <span id="status">Connecting...</span>
+      </footer>
+    </main>
+  </body>
+</html>
