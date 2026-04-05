@@ -19,9 +19,9 @@ The website does not need Python. Python is only needed on the machine connected
 ## Files You Will Use
 
 - [import.py](import.py) is the sender script.
-- [web/index.html](web/index.html) is the website page.
-- [web/app.js](web/app.js) is the website logic.
-- [web/config.example.js](web/config.example.js) is the template for website config.
+- [index.html](index.html) is the website page.
+- [app.js](app.js) is the website logic.
+- [config.example.js](config.example.js) is the template for website config.
 - [.env.example](.env.example) is the template for the sender machine config.
 
 ## 1) Create Supabase Storage Bucket
@@ -99,9 +99,9 @@ If you want a cleaner terminal, [import.py](import.py) already prints a step-by-
 
 The website is static. It only needs HTML, CSS, and JavaScript.
 
-1. Copy [web/config.example.js](web/config.example.js) to [web/config.js](web/config.js).
+1. Copy [config.example.js](config.example.js) to [config.js](config.js).
 2. Put the same Supabase URL, anon key, bucket name, and table name in it.
-3. Open [web/index.html](web/index.html) through a static host.
+3. Open [index.html](index.html) through a static host.
 
 The website polls Supabase every 2 seconds and always shows the newest:
 - image
@@ -118,25 +118,25 @@ This is the easiest option.
 
 1. Go to https://www.netlify.com/.
 2. Sign in.
-3. Drag and drop the `web` folder contents into Netlify, or connect your GitHub repo.
+3. Drag and drop the repository root static files into Netlify, or connect your GitHub repo.
 4. Deploy.
 
 Your website will get a public URL.
 
-Important: upload the `web` folder, not the Python files.
+Important: host the static files at repository root: `index.html`, `app.js`, `styles.css`, and `config.js`.
 
 ### Option B: Vercel
 
 1. Go to https://vercel.com/.
 2. Import your GitHub repository.
-3. Set the project root to the `web` folder if needed, or deploy the static files directly.
+3. Deploy from repository root.
 4. Deploy.
 
 ### Option C: GitHub Pages
 
-1. Put the `web` folder in a GitHub repo.
+1. Use this repository as-is.
 2. Enable GitHub Pages in repository settings.
-3. Set the publish source to the `web` folder or the branch that contains the website files.
+3. Set Pages source to branch `main` and folder `/ (root)`.
 
 This is good if you want a very simple static site.
 
@@ -145,7 +145,6 @@ This is good if you want a very simple static site.
 If you want to test locally first:
 
 ```powershell
-cd .\web
 python -m http.server 5500
 ```
 

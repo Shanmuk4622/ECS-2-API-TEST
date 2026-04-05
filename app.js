@@ -1,6 +1,6 @@
 const cfg = window.APP_CONFIG;
 if (!cfg) {
-  throw new Error("Missing config.js. Copy web/config.example.js to web/config.js first.");
+  throw new Error("Missing config.js. Copy config.example.js to config.js first.");
 }
 
 const supabaseClient = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
