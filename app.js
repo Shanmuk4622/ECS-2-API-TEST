@@ -9,6 +9,10 @@ const latestImageEl = document.getElementById("latestImage");
 const imageMetaEl = document.getElementById("imageMeta");
 const activityEl = document.getElementById("activityResult");
 const presenceEl = document.getElementById("presenceResult");
+const activityLabelEl = document.getElementById("activityLabel");
+const activityConfidenceEl = document.getElementById("activityConfidence");
+const presenceLabelEl = document.getElementById("presenceLabel");
+const presenceConfidenceEl = document.getElementById("presenceConfidence");
 const statusEl = document.getElementById("status");
 
 let lastId = null;
@@ -18,12 +22,26 @@ function setStatus(text, isError = false) {
   statusEl.style.color = isError ? "#b42318" : "#12715f";
 }
 
-function prettyJson(value) {
+function asRawJson(value) {
   try {
-    return JSON.stringify(value, null, 2);
+    if (typeof value === "string") {
+      return value;
+    }
+    return JSON.stringify(value);
   } catch {
     return String(value);
   }
+}
+
+function pickField(obj, key) {
+  if (!obj || typeof obj !== "object") {
+    return "-";
+  }
+  const value = obj[key];
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  return String(value);
 }
 
 async function refreshLatest() {
@@ -56,8 +74,13 @@ async function refreshLatest() {
   latestImageEl.src = `${imageData.publicUrl}?t=${Date.now()}`;
   imageMetaEl.textContent = `Path: ${row.image_path} | Created: ${new Date(row.created_at).toLocaleString()}`;
 
-  activityEl.textContent = prettyJson(row.activity_result);
-  presenceEl.textContent = prettyJson(row.presence_result);
+  activityLabelEl.textContent = pickField(row.activity_result, "label");
+  activityConfidenceEl.textContent = pickField(row.activity_result, "confidence");
+  presenceLabelEl.textContent = pickField(row.presence_result, "label");
+  presenceConfidenceEl.textContent = pickField(row.presence_result, "confidence");
+
+  activityEl.textContent = asRawJson(row.activity_result);
+  presenceEl.textContent = asRawJson(row.presence_result);
 
   lastId = row.id;
   setStatus(`Updated at ${new Date().toLocaleTimeString()}`);

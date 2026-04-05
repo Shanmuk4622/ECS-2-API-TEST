@@ -66,12 +66,26 @@ body {
 pre {
   margin: 0;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   background: #f2f6ff;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px;
   min-height: 120px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.stats p {
+  margin: 0;
+  font-size: 0.98rem;
 }
 
 .muted {
