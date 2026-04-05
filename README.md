@@ -1,55 +1,59 @@
 # CSI Live Monitor
 
-This project has two separate parts:
+End-to-end CSI monitoring pipeline with:
 
-1. A sender script on the machine that reads CSI data from the serial port, creates PNG images, uploads them to Supabase, calls both model APIs, and stores the results.
-2. A static website that reads the latest result from Supabase and shows the newest image plus the model outputs.
+- a Python sender script for CSI collection + model calls
+- Supabase for storage and latest prediction state
+- a static website for live visualization
 
-The website does not need Python. Python is only needed on the machine connected to the CSI source.
+## Website Preview
 
-## Project Flow
+![CSI Live Monitor UI](web/image.png)
 
-1. CSI data is collected from the ESP device over serial.
-2. The sender script turns one CSI block into one PNG image.
-3. The PNG is uploaded to Supabase Storage.
-4. The PNG is sent to the two model endpoints.
-5. The returned JSON values are saved in Supabase Postgres.
-6. The website fetches the latest row from Supabase and displays it.
+## How The System Works
 
-## Files You Will Use
+1. `import.py` runs on the machine connected to ESP/serial.
+2. It reads CSI packets and builds a `400 x 52` matrix.
+3. The matrix is saved as a PNG image.
+4. The image is uploaded to Supabase Storage bucket `csi-images`.
+5. The same image is sent to both model endpoints:
+	- activity model
+	- presence model
+6. The model responses are stored in `csi_predictions` table.
+7. The website (`index.html` + `app.js`) polls Supabase every `POLL_MS` and shows:
+	- latest image
+	- label + confidence for each model
+	- full raw JSON response for each model
 
-- [import.py](import.py) is the sender script.
-- [index.html](index.html) is the website page.
-- [app.js](app.js) is the website logic.
-- [config.example.js](config.example.js) is the template for website config.
-- [.env.example](.env.example) is the template for the sender machine config.
+## Project Files
 
-## 1) Create Supabase Storage Bucket
+- [import.py](import.py): Sender script (serial -> image -> upload -> models -> DB row)
+- [python/uploader.py](python/uploader.py): Shared helper functions for upload/API/table writes
+- [index.html](index.html): Main static website page
+- [app.js](app.js): Website data fetching and rendering logic
+- [styles.css](styles.css): Website styling
+- [config.example.js](config.example.js): Website config template
+- [config.js](config.js): Website runtime config
+- [supabase_setup.sql](supabase_setup.sql): SQL for table and RLS policies
+- [.env.example](.env.example): Sender machine environment template
 
-1. Open your Supabase project dashboard.
-2. Go to **Storage**.
-3. Create a new bucket named `csi-images`.
-4. Make it a **public bucket** so the website can load images by URL.
+## Supabase Setup
 
-## 2) Create the Database Table
+### 1) Create Storage Bucket
 
-1. Open **SQL Editor** in Supabase.
-2. Run the SQL from [supabase_setup.sql](supabase_setup.sql).
+Create a public bucket named `csi-images`.
 
-This creates the `csi_predictions` table that stores:
-- image path
-- activity model output
-- presence model output
-- timestamp
+### 2) Create Database Table and RLS
 
-## 3) Add Storage Policies
+Run [supabase_setup.sql](supabase_setup.sql) in Supabase SQL Editor.
 
-In the Supabase SQL editor, run:
+### 3) Storage Policies (Upload + Read)
+
+Run this in SQL Editor:
 
 ```sql
 drop policy if exists "storage_read_anon" on storage.objects;
 drop policy if exists "storage_insert_anon" on storage.objects;
-drop policy if exists "storage_delete_anon" on storage.objects;
 
 create policy "storage_read_anon"
 on storage.objects
@@ -64,20 +68,20 @@ to anon
 with check (bucket_id = 'csi-images');
 ```
 
-You only need delete policy if you want the sender script to remove old images from storage.
+If you get `policy already exists`, run the `drop policy if exists ...` lines first, then run create again.
 
-If Supabase says a policy already exists, run the `drop policy if exists` lines first, then run the create lines again.
+## Sender Machine Setup (Python)
 
-## 4) Set Up the Sender Machine
+This setup is only for the CSI sender machine.
 
-This is the computer connected to the CSI/serial source.
-
-1. Copy [.env.example](.env.example) to `.env`.
-2. Fill in your real Supabase URL and anon key.
-3. Make sure the model URLs are correct.
-4. Install the Python packages.
-
-Run:
+1. Copy [.env.example](.env.example) to `.env`
+2. Fill real values for:
+	- `SUPABASE_URL`
+	- `SUPABASE_ANON_KEY`
+	- `ACTIVITY_API_URL`
+	- `PRESENCE_API_URL`
+	- serial settings (`ESP_PORTS`, `BAUD_RATE`)
+3. Install dependencies and run:
 
 ```powershell
 python -m venv .venv
@@ -86,83 +90,66 @@ pip install -r requirements.txt
 python .\import.py
 ```
 
-The sender script does this every time it creates a new image:
-- saves the image locally
-- uploads it to Supabase Storage
-- sends it to the activity model
-- sends it to the presence model
-- saves the prediction row in Supabase
+## Website Setup
 
-If you want a cleaner terminal, [import.py](import.py) already prints a step-by-step status for each new image.
+The website is static and does not require Python in production.
 
-## 5) Configure the Website
+1. Copy [config.example.js](config.example.js) to [config.js](config.js)
+2. Set:
+	- `SUPABASE_URL`
+	- `SUPABASE_ANON_KEY`
+	- `BUCKET_NAME`
+	- `TABLE_NAME`
+	- `POLL_MS`
 
-The website is static. It only needs HTML, CSS, and JavaScript.
+## Local Website Test
 
-1. Copy [config.example.js](config.example.js) to [config.js](config.js).
-2. Put the same Supabase URL, anon key, bucket name, and table name in it.
-3. Open [index.html](index.html) through a static host.
-
-The website polls Supabase every 2 seconds and always shows the newest:
-- image
-- activity result
-- presence result
-
-## 6) How to Get the Website Online
-
-You have three simple options.
-
-### Option A: Netlify
-
-This is the easiest option.
-
-1. Go to https://www.netlify.com/.
-2. Sign in.
-3. Drag and drop the repository root static files into Netlify, or connect your GitHub repo.
-4. Deploy.
-
-Your website will get a public URL.
-
-Important: host the static files at repository root: `index.html`, `app.js`, `styles.css`, and `config.js`.
-
-### Option B: Vercel
-
-1. Go to https://vercel.com/.
-2. Import your GitHub repository.
-3. Deploy from repository root.
-4. Deploy.
-
-### Option C: GitHub Pages
-
-1. Use this repository as-is.
-2. Enable GitHub Pages in repository settings.
-3. Set Pages source to branch `main` and folder `/ (root)`.
-
-This is good if you want a very simple static site.
-
-## Local Test
-
-If you want to test locally first:
+From repository root:
 
 ```powershell
 python -m http.server 5500
 ```
 
-Then open:
+Open `http://localhost:5500`.
 
-`http://localhost:5500`
+## Deploy Website Online
 
-## What Runs Where
+Because `index.html` is in repository root, deploy from root.
 
-- Sender machine: `import.py`
-- Supabase: bucket and table
-- Website host: static files only
+### GitHub Pages
 
-The website does not need to run Python.
+1. Repository Settings -> Pages
+2. Source: `Deploy from a branch`
+3. Branch: `main`
+4. Folder: `/ (root)`
 
-## Notes
+### Netlify
 
-- You shared an anon key in chat. Rotate it in Supabase after testing if needed.
-- CSI image size `400x32` is fine.
-- If your model API expects a different upload field name, update `call_model_api()` in [python/uploader.py](python/uploader.py).
-- If you want the sender script to run as a service later, you can host it separately, but that is not required for the website.
+1. Import repo in Netlify
+2. Build command: none
+3. Publish directory: `.`
+
+### Vercel
+
+1. Import repo in Vercel
+2. Framework preset: `Other`
+3. Output directory: `.` (or leave default for static root)
+
+## Runtime Responsibilities
+
+- Sender machine runs [import.py](import.py)
+- Supabase stores images + prediction rows
+- Website host serves static files only
+
+## Troubleshooting
+
+- Website not updating after manual image upload:
+  Uploading to bucket alone is not enough. A row must also be inserted in `csi_predictions` with matching `image_path`.
+- `Missing config.js` in browser:
+  Ensure [config.js](config.js) exists and has real values.
+- Python import errors:
+  Install dependencies from [requirements.txt](requirements.txt).
+
+## Security Note
+
+If keys were shared publicly during testing, rotate them in Supabase and update `.env` and `config.js`.
