@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import serial
 from dotenv import load_dotenv
-from supabase import create_client
 
 from python.uploader import call_model_api, save_prediction_row, upload_image
 
@@ -36,13 +35,8 @@ PRESENCE_API_URL = os.getenv("PRESENCE_API_URL", "").strip()
 # ====================
 
 
-if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    raise RuntimeError("Set SUPABASE_URL and SUPABASE_ANON_KEY in .env")
 if not ACTIVITY_API_URL or not PRESENCE_API_URL:
     raise RuntimeError("Set ACTIVITY_API_URL and PRESENCE_API_URL in .env")
-
-
-supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 
 def log_step(com_port: str, message: str) -> None:
@@ -119,7 +113,7 @@ def collect_csi(com_port: str) -> None:
         log_step(com_port, f"New image created: {filepath}")
         log_step(com_port, "Uploading image to Supabase...")
 
-        object_path = upload_image(supabase, BUCKET_NAME, image_path)
+        object_path = upload_image(image_path)
         log_step(com_port, f"Uploaded: {object_path}")
 
         log_step(com_port, "Sending image to activity model...")
@@ -127,13 +121,7 @@ def collect_csi(com_port: str) -> None:
         log_step(com_port, "Sending image to presence model...")
         presence_result = call_model_api(PRESENCE_API_URL, image_path)
 
-        save_prediction_row(
-            supabase=supabase,
-            table_name=TABLE_NAME,
-            image_path=object_path,
-            activity_result=activity_result,
-            presence_result=presence_result,
-        )
+        save_prediction_row(object_path, activity_result, presence_result)
 
         log_step(com_port, "Saved prediction row in Supabase")
         log_step(com_port, f"Frame {image_count} complete")
