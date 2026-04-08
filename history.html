@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSI History Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./live-api.js"></script>
+    <script defer src="./history.js"></script>
+  </head>
+  <body>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <main class="app shell">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Historical Exploration</p>
+          <h1>CSI History Lab</h1>
+          <p class="muted">Deep view across prediction rows with filtering and timeline cards.</p>
+        </div>
+        <nav class="top-nav" aria-label="Primary">
+          <a class="nav-link" href="./index.html">Dashboard</a>
+          <a class="nav-link active" href="./history.html">History Lab</a>
+          <a class="nav-link" href="./history-insights.html">Insights</a>
+        </nav>
+      </header>
+
+      <section class="panel reveal">
+        <h2>Controls</h2>
+        <div class="history-controls">
+          <label class="control-group" for="limit">
+            <span>Rows</span>
+            <select id="limit" class="dropdown">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </label>
+
+          <label class="control-group" for="order">
+            <span>Order</span>
+            <select id="order" class="dropdown">
+              <option value="desc" selected>Newest first</option>
+              <option value="asc">Oldest first</option>
+            </select>
+          </label>
+
+          <label class="control-group" for="filterText">
+            <span>Label filter</span>
+            <input id="filterText" class="text-input" type="text" placeholder="e.g. walk, present" />
+          </label>
+
+          <button id="pollNowBtn" class="btn" type="button">Poll Now</button>
+          <button id="refreshBtn" class="btn btn-ghost" type="button">Refresh View</button>
+          <button id="clearHistoryBtn" class="btn btn-ghost" type="button">Clear Local History</button>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Timeline Cards</h2>
+        <div id="cards" class="history-list"></div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Data Grid</h2>
+        <div class="history-table-wrap">
+          <table class="history-table" aria-label="Prediction history table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Created</th>
+                <th>Activity</th>
+                <th>A Conf</th>
+                <th>Presence</th>
+                <th>P Conf</th>
+                <th>Image</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="panel muted">
+        <span id="status">Loading local history...</span>
+      </footer>
+    </main>
+  </body>
+</html>

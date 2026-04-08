@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSI Insights</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./live-api.js"></script>
+    <script defer src="./history-insights.js"></script>
+  </head>
+  <body>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <main class="app shell">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Aggregated View</p>
+          <h1>CSI Insight Deck</h1>
+          <p class="muted">Fast summary of model confidence and label distribution.</p>
+        </div>
+        <nav class="top-nav" aria-label="Primary">
+          <a class="nav-link" href="./index.html">Dashboard</a>
+          <a class="nav-link" href="./history.html">History Lab</a>
+          <a class="nav-link active" href="./history-insights.html">Insights</a>
+        </nav>
+      </header>
+
+      <section class="panel reveal">
+        <div class="history-controls">
+          <label class="control-group" for="lookbackLimit">
+            <span>Rows to analyze</span>
+            <select id="lookbackLimit" class="dropdown">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+            </select>
+          </label>
+          <button id="pollNowBtn" class="btn" type="button">Poll Now</button>
+          <button id="analyzeBtn" class="btn" type="button">Analyze</button>
+        </div>
+      </section>
+
+      <section class="panel reveal insights-grid">
+        <article class="kpi">
+          <h3>Total Rows</h3>
+          <p id="kpiRows">-</p>
+        </article>
+        <article class="kpi">
+          <h3>Avg Activity Confidence</h3>
+          <p id="kpiActivity">-</p>
+        </article>
+        <article class="kpi">
+          <h3>Avg Presence Confidence</h3>
+          <p id="kpiPresence">-</p>
+        </article>
+        <article class="kpi">
+          <h3>Most Recent Row Time</h3>
+          <p id="kpiRecent">-</p>
+        </article>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Top Activity Labels</h2>
+        <div id="activityBars" class="bar-list"></div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Top Presence Labels</h2>
+        <div id="presenceBars" class="bar-list"></div>
+      </section>
+
+      <footer class="panel muted">
+        <span id="status">Waiting...</span>
+      </footer>
+    </main>
+  </body>
+</html>

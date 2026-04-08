@@ -1,83 +1,110 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CSI Live Monitor</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./config.js"></script>
-    <script defer src="./app.js"></script>
-  </head>
-  <body>
-    <main class="app">
-      <header class="header">
-        <div>
-          <h1>CSI Live Monitor</h1>
-          <p>Latest CSI image + model outputs in near real time.</p>
-        </div>
-        <div class="header-controls">
-          <button id="historyToggleBtn" class="btn" type="button" aria-expanded="false">History</button>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>CSI Pulse Command Center</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="./styles.css" />
+        <script src="./live-api.js"></script>
+        <script defer src="./app.js"></script>
+    </head>
+    <body>
+        <div class="orb orb-a"></div>
+        <div class="orb orb-b"></div>
+        <main class="app shell">
+            <header class="header">
+                <div>
+                    <p class="eyebrow">Realtime Command Feed</p>
+                    <h1>CSI Pulse Command Center</h1>
+                    <p class="muted">Live image stream, model confidence pulse, and rapid historical drill-down.</p>
+                </div>
+                <nav class="top-nav" aria-label="Primary">
+                    <a class="nav-link active" href="./index.html">Dashboard</a>
+                    <a class="nav-link" href="./history.html">History Lab</a>
+                    <a class="nav-link" href="./history-insights.html">Insights</a>
+                </nav>
+            </header>
 
-          <label class="control-group" for="historyLimit">
-            <span>Rows</span>
-            <select id="historyLimit" class="dropdown">
-              <option value="5">5</option>
-              <option value="10" selected>10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-          </label>
+            <section class="hero panel reveal">
+                <div class="hero-left">
+                    <p class="hero-kicker">Signal health</p>
+                    <h2 class="hero-title">Live polling is armed</h2>
+                    <p class="hero-copy">System polls your laptop model endpoints every second and stores real snapshots in browser history.</p>
+                    <div class="hero-actions">
+                        <button id="historyToggleBtn" class="btn" type="button" aria-expanded="false">Quick History</button>
+                        <button id="refreshNowBtn" class="btn btn-ghost" type="button">Refresh Now</button>
+                        <a class="btn btn-ghost" href="./history.html">Open Full History</a>
+                    </div>
+                </div>
+                <div class="hero-right">
+                    <div class="live-dot-wrap">
+                        <span class="live-dot"></span>
+                        <span>Live</span>
+                    </div>
+                    <p id="status" class="status-text">Connecting...</p>
+                </div>
+            </section>
 
-          <label class="control-group" for="historySort">
-            <span>Order</span>
-            <select id="historySort" class="dropdown">
-              <option value="desc" selected>Newest</option>
-              <option value="asc">Oldest</option>
-            </select>
-          </label>
-        </div>
-      </header>
+            <section class="panel data-panel reveal">
+                <h2>Model Predictions</h2>
+                <div class="grid">
+                    <article class="prediction-card">
+                        <h3>Activity Model</h3>
+                        <div class="stats">
+                            <p><strong>Label:</strong> <span id="activityLabel">-</span></p>
+                            <p><strong>Confidence:</strong> <span id="activityConfidence">-</span></p>
+                        </div>
+                        <div class="meter" role="presentation">
+                            <div id="activityMeterFill" class="meter-fill"></div>
+                        </div>
+                        <pre id="activityResult">No data yet</pre>
+                        <p class="muted">Timestamp: <span id="activityTime">-</span></p>
+                    </article>
+                    <article class="prediction-card">
+                        <h3>Presence Model</h3>
+                        <div class="stats">
+                            <p><strong>Label:</strong> <span id="presenceLabel">-</span></p>
+                            <p><strong>Confidence:</strong> <span id="presenceConfidence">-</span></p>
+                        </div>
+                        <div class="meter" role="presentation">
+                            <div id="presenceMeterFill" class="meter-fill"></div>
+                        </div>
+                        <pre id="presenceResult">No data yet</pre>
+                        <p class="muted">Timestamp: <span id="presenceTime">-</span></p>
+                    </article>
+                </div>
+            </section>
 
-      <section class="panel image-panel">
-        <h2>Latest Image</h2>
-        <div class="image-wrap">
-          <img id="latestImage" alt="Latest CSI frame" />
-        </div>
-        <p id="imageMeta" class="muted">Waiting for data...</p>
-      </section>
-
-      <section class="panel data-panel">
-        <h2>Predictions</h2>
-        <div class="grid">
-          <article>
-            <h3>Activity API</h3>
-            <div class="stats">
-              <p><strong>Label:</strong> <span id="activityLabel">-</span></p>
-              <p><strong>Confidence:</strong> <span id="activityConfidence">-</span></p>
-            </div>
-            <pre id="activityResult">No data yet</pre>
-          </article>
-          <article>
-            <h3>Presence API</h3>
-            <div class="stats">
-              <p><strong>Label:</strong> <span id="presenceLabel">-</span></p>
-              <p><strong>Confidence:</strong> <span id="presenceConfidence">-</span></p>
-            </div>
-            <pre id="presenceResult">No data yet</pre>
-          </article>
-        </div>
-      </section>
-
-      <section id="historyPanel" class="panel history-panel hidden" aria-live="polite">
-        <h2>Prediction History</h2>
-        <p class="muted">Latest prediction rows from Supabase.</p>
-        <div id="historyList" class="history-list"></div>
-      </section>
-
-      <footer class="footer muted">
-        <span id="status">Connecting...</span>
-      </footer>
-    </main>
-  </body>
+            <section id="historyPanel" class="panel history-panel hidden reveal" aria-live="polite">
+                <div class="history-head">
+                    <h2>Quick History</h2>
+                    <div class="history-controls">
+                        <label class="control-group" for="historyLimit">
+                            <span>Rows</span>
+                            <select id="historyLimit" class="dropdown">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </label>
+                        <label class="control-group" for="historySort">
+                            <span>Order</span>
+                            <select id="historySort" class="dropdown">
+                                <option value="desc" selected>Newest</option>
+                                <option value="asc">Oldest</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div id="historyList" class="history-list"></div>
+            </section>
+        </main>
+    </body>
 </html>

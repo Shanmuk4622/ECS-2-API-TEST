@@ -1,59 +1,61 @@
-const cfg = window.APP_CONFIG;
-if (!cfg) {
-  throw new Error("Missing config.js. Copy config.example.js to config.js first.");
+const api = window.CSI_API;
+if (!api) {
+  throw new Error("Missing live-api.js");
 }
 
-const supabaseClient = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-
-const latestImageEl = document.getElementById("latestImage");
-const imageMetaEl = document.getElementById("imageMeta");
 const activityEl = document.getElementById("activityResult");
 const presenceEl = document.getElementById("presenceResult");
 const activityLabelEl = document.getElementById("activityLabel");
 const activityConfidenceEl = document.getElementById("activityConfidence");
 const presenceLabelEl = document.getElementById("presenceLabel");
 const presenceConfidenceEl = document.getElementById("presenceConfidence");
+const activityMeterFillEl = document.getElementById("activityMeterFill");
+const presenceMeterFillEl = document.getElementById("presenceMeterFill");
+const activityTimeEl = document.getElementById("activityTime");
+const presenceTimeEl = document.getElementById("presenceTime");
 const statusEl = document.getElementById("status");
+const refreshNowBtn = document.getElementById("refreshNowBtn");
+
 const historyToggleBtn = document.getElementById("historyToggleBtn");
 const historyPanelEl = document.getElementById("historyPanel");
 const historyListEl = document.getElementById("historyList");
 const historyLimitEl = document.getElementById("historyLimit");
 const historySortEl = document.getElementById("historySort");
 
-let lastId = null;
 let historyVisible = false;
 let pollHandle = null;
 let pendingAnimationFrame = null;
+let isFetching = false;
 
 function setStatus(text, isError = false) {
+  if (!statusEl) {
+    return;
+  }
   statusEl.textContent = text;
-  statusEl.style.color = isError ? "#b42318" : "#12715f";
+  statusEl.style.color = isError ? "#ff8f8f" : "#abf5d3";
 }
 
-function asRawJson(value) {
-  try {
-    if (typeof value === "string") {
-      return value;
-    }
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
+function renderMeter(meterEl, confidence) {
+  if (!meterEl) {
+    return;
   }
+  const num = Number(confidence);
+  if (Number.isNaN(num)) {
+    meterEl.style.width = "0%";
+    return;
+  }
+  meterEl.style.width = `${(Math.max(0, Math.min(1, num)) * 100).toFixed(1)}%`;
 }
 
-function pickField(obj, key) {
-  if (!obj || typeof obj !== "object") {
-    return "-";
-  }
-  const value = obj[key];
-  if (value === null || value === undefined) {
-    return "-";
-  }
-  return String(value);
+function renderPredictionCard({ labelEl, confEl, timeEl, jsonEl, meterEl, payload }) {
+  labelEl.textContent = payload.label ?? "-";
+  confEl.textContent = payload.confidence === null ? "-" : Number(payload.confidence).toFixed(4);
+  timeEl.textContent = api.formatTime(payload.timestamp);
+  jsonEl.textContent = JSON.stringify(payload, null, 2);
+  renderMeter(meterEl, payload.confidence);
 }
 
 function animateUpdate() {
-  latestImageEl.classList.remove("image-pop");
   activityEl.classList.remove("flash-in");
   presenceEl.classList.remove("flash-in");
 
@@ -62,7 +64,6 @@ function animateUpdate() {
   }
 
   pendingAnimationFrame = requestAnimationFrame(() => {
-    latestImageEl.classList.add("image-pop");
     activityEl.classList.add("flash-in");
     presenceEl.classList.add("flash-in");
     pendingAnimationFrame = null;
@@ -70,115 +71,113 @@ function animateUpdate() {
 }
 
 function renderHistory(rows) {
-  if (!rows || rows.length === 0) {
-    historyListEl.innerHTML = '<p class="muted">No rows found for the selected options.</p>';
+  if (!historyListEl) {
     return;
   }
 
-  const cards = rows.map((row) => {
-    const createdAt = new Date(row.created_at).toLocaleString();
-    const activityLabel = pickField(row.activity_result, "label");
-    const activityConfidence = pickField(row.activity_result, "confidence");
-    const presenceLabel = pickField(row.presence_result, "label");
-    const presenceConfidence = pickField(row.presence_result, "confidence");
+  if (!rows.length) {
+    historyListEl.innerHTML = '<p class="muted">No local history yet. Keep dashboard open for a few polls.</p>';
+    return;
+  }
 
-    return `
-      <article class="history-card">
-        <p><strong>ID:</strong> ${row.id}</p>
-        <p><strong>Created:</strong> ${createdAt}</p>
-        <p><strong>Image:</strong> ${row.image_path}</p>
-        <p><strong>Activity:</strong> ${activityLabel} (${activityConfidence})</p>
-        <p><strong>Presence:</strong> ${presenceLabel} (${presenceConfidence})</p>
-      </article>
-    `;
-  });
-
-  historyListEl.innerHTML = cards.join("");
+  historyListEl.innerHTML = rows
+    .map((row) => {
+      const activity = row.activity || {};
+      const presence = row.presence || {};
+      return `
+        <article class="history-card">
+          <p><strong>Captured:</strong> ${api.formatTime(row.capturedAt)}</p>
+          <p><strong>Activity:</strong> ${activity.label ?? "-"} (${activity.confidence ?? "-"})</p>
+          <p><strong>Presence:</strong> ${presence.label ?? "-"} (${presence.confidence ?? "-"})</p>
+          <p><strong>Source:</strong> ${api.BASE_URL}</p>
+        </article>
+      `;
+    })
+    .join("");
 }
 
-async function refreshHistory() {
+function refreshHistoryPanel() {
   if (!historyVisible) {
     return;
   }
 
-  const limit = Number(historyLimitEl.value || 10);
-  const ascending = historySortEl.value === "asc";
-  const { data, error } = await supabaseClient
-    .from(cfg.TABLE_NAME)
-    .select("id, image_path, activity_result, presence_result, created_at")
-    .order("created_at", { ascending })
-    .limit(limit);
+  const limit = Number(historyLimitEl?.value || 10);
+  const sort = historySortEl?.value || "desc";
+  const rows = api.loadHistory().slice();
 
-  if (error) {
-    historyListEl.innerHTML = `<p class="muted">Failed to load history: ${error.message}</p>`;
-    return;
-  }
+  rows.sort((a, b) => {
+    const aTs = api.normalizeTimestamp(a.capturedAt) || 0;
+    const bTs = api.normalizeTimestamp(b.capturedAt) || 0;
+    return sort === "asc" ? aTs - bTs : bTs - aTs;
+  });
 
-  renderHistory(data || []);
+  renderHistory(rows.slice(0, limit));
 }
 
 async function refreshLatest() {
-  const { data, error } = await supabaseClient
-    .from(cfg.TABLE_NAME)
-    .select("id, image_path, activity_result, presence_result, created_at")
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (error) {
-    setStatus(`Error: ${error.message}`, true);
+  if (isFetching) {
     return;
   }
+  isFetching = true;
 
-  if (!data || data.length === 0) {
-    setStatus("No data yet");
-    return;
-  }
+  try {
+    const result = await api.fetchBothLatest();
 
-  const row = data[0];
-  if (row.id === lastId) {
-    setStatus(`Live polling every ${cfg.POLL_MS}ms`);
-    return;
-  }
+    renderPredictionCard({
+      labelEl: activityLabelEl,
+      confEl: activityConfidenceEl,
+      timeEl: activityTimeEl,
+      jsonEl: activityEl,
+      meterEl: activityMeterFillEl,
+      payload: result.activity
+    });
 
-  const { data: imageData } = supabaseClient.storage
-    .from(cfg.BUCKET_NAME)
-    .getPublicUrl(row.image_path);
+    renderPredictionCard({
+      labelEl: presenceLabelEl,
+      confEl: presenceConfidenceEl,
+      timeEl: presenceTimeEl,
+      jsonEl: presenceEl,
+      meterEl: presenceMeterFillEl,
+      payload: result.presence
+    });
 
-  latestImageEl.src = `${imageData.publicUrl}?t=${Date.now()}`;
-  imageMetaEl.textContent = `Path: ${row.image_path} | Created: ${new Date(row.created_at).toLocaleString()}`;
+    const snapshot = {
+      capturedAt: result.fetchedAt,
+      activity: result.activity,
+      presence: result.presence
+    };
+    api.appendHistory(snapshot);
 
-  activityLabelEl.textContent = pickField(row.activity_result, "label");
-  activityConfidenceEl.textContent = pickField(row.activity_result, "confidence");
-  presenceLabelEl.textContent = pickField(row.presence_result, "label");
-  presenceConfidenceEl.textContent = pickField(row.presence_result, "confidence");
+    animateUpdate();
+    setStatus(`Live from ${api.BASE_URL} at ${new Date().toLocaleTimeString()}`);
 
-  activityEl.textContent = asRawJson(row.activity_result);
-  presenceEl.textContent = asRawJson(row.presence_result);
-
-  animateUpdate();
-  lastId = row.id;
-  setStatus(`Updated at ${new Date().toLocaleTimeString()}`);
-
-  if (historyVisible) {
-    refreshHistory();
+    if (historyVisible) {
+      refreshHistoryPanel();
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    setStatus(`Endpoint offline or unreachable: ${message}`, true);
+  } finally {
+    isFetching = false;
   }
 }
 
-setStatus("Connected");
-refreshLatest();
+refreshNowBtn?.addEventListener("click", refreshLatest);
 
-pollHandle = setInterval(refreshLatest, cfg.POLL_MS);
-
-historyToggleBtn?.addEventListener("click", async () => {
+historyToggleBtn?.addEventListener("click", () => {
   historyVisible = !historyVisible;
-  historyPanelEl.classList.toggle("hidden", !historyVisible);
+  historyPanelEl?.classList.toggle("hidden", !historyVisible);
   historyToggleBtn.setAttribute("aria-expanded", String(historyVisible));
-  historyToggleBtn.textContent = historyVisible ? "Hide History" : "History";
+  historyToggleBtn.textContent = historyVisible ? "Hide History" : "Quick History";
 
   if (historyVisible) {
-    await refreshHistory();
+    refreshHistoryPanel();
   }
 });
 
-historyLimitEl?.addEventListener("change", refreshHistory);
-historySortEl?.addEventListener("change", refreshHistory);
+historyLimitEl?.addEventListener("change", refreshHistoryPanel);
+historySortEl?.addEventListener("change", refreshHistoryPanel);
+
+setStatus("Connecting to live endpoint...");
+refreshLatest();
+pollHandle = setInterval(refreshLatest, 1000);
