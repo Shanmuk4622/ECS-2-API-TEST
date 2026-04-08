@@ -1,95 +1,96 @@
 import json
 import matplotlib.pyplot as plt
-import os
+import numpy as np
 
 # -------------------------------
-# 1. CHECK FILE EXISTS
+# LOAD DATA
 # -------------------------------
-file_path = "trainer_state.json"  # keep file in same folder
-
-if not os.path.exists(file_path):
-    print("❌ File not found:", file_path)
-    exit()
-
-print("✅ File found")
-
-# -------------------------------
-# 2. LOAD FILE
-# -------------------------------
-with open(file_path, "r") as f:
+with open("trainer_state.json", "r") as f:
     data = json.load(f)
-
-if "log_history" not in data:
-    print("❌ log_history not found in JSON")
-    exit()
 
 log_history = data["log_history"]
 
-print(f"✅ Loaded {len(log_history)} log entries")
-
-# -------------------------------
-# 3. EXTRACT VALUES
-# -------------------------------
-steps = []
-losses = []
-grad_norms = []
-learning_rates = []
+steps, losses, grads, lrs = [], [], [], []
 
 for entry in log_history:
     if "loss" in entry:
-        steps.append(entry.get("step", 0))
-        losses.append(entry.get("loss", 0))
-        grad_norms.append(entry.get("grad_norm", 0))
-        learning_rates.append(entry.get("learning_rate", 0))
-
-print(f"✅ Extracted {len(steps)} training points")
-
-if len(steps) == 0:
-    print("❌ No valid data found (check JSON format)")
-    exit()
+        steps.append(entry["step"])
+        losses.append(entry["loss"])
+        grads.append(entry["grad_norm"])
+        lrs.append(entry["learning_rate"])
 
 # -------------------------------
-# 4. LOSS CURVE
+# SMOOTHING (STRONGER + CLEAN)
 # -------------------------------
-plt.figure()
-plt.plot(steps, losses)
+def smooth(y, window=7):
+    return np.convolve(y, np.ones(window)/window, mode='same')
+
+losses_s = smooth(losses)
+grads_s = smooth(grads)
+
+# -------------------------------
+# CLEAN STYLE (NO GRID, MINIMAL)
+# -------------------------------
+plt.rcParams.update({
+    "axes.grid": False,   # 🔥 disable grid globally
+})
+
+# -------------------------------
+# 1. LOSS CURVE
+# -------------------------------
+plt.figure(figsize=(5.5, 3.8))
+
+plt.plot(steps, losses_s, linewidth=2)
+
 plt.xlabel("Steps")
-plt.ylabel("Cross-Entropy Loss")
-plt.title("Training Loss Curve")
-plt.grid()
+plt.ylabel("Loss")
 
-plt.savefig("loss_curve.png")
-print("✅ Saved loss_curve.png")
+plt.title("Training Loss", pad=10)
+
+# Remove top/right borders (clean academic look)
+plt.gca().spines['top'].set_visible(False)
+plt.gca().spines['right'].set_visible(False)
+
+plt.tight_layout()
+plt.savefig("loss_curve_paper.png", dpi=400)
+plt.close()
 
 # -------------------------------
-# 5. GRADIENT CURVE
+# 2. GRADIENT NORM
 # -------------------------------
-plt.figure()
-plt.plot(steps, grad_norms)
+plt.figure(figsize=(5.5, 3.8))
+
+plt.plot(steps, grads_s, linewidth=2)
+
 plt.xlabel("Steps")
 plt.ylabel("Gradient Norm")
-plt.title("Gradient Norm")
-plt.grid()
 
-plt.savefig("gradient_curve.png")
-print("✅ Saved gradient_curve.png")
+plt.title("Gradient Stability", pad=10)
+
+plt.gca().spines['top'].set_visible(False)
+plt.gca().spines['right'].set_visible(False)
+
+plt.tight_layout()
+plt.savefig("gradient_curve_paper.png", dpi=400)
+plt.close()
 
 # -------------------------------
-# 6. LEARNING RATE CURVE
+# 3. LEARNING RATE
 # -------------------------------
-plt.figure()
-plt.plot(steps, learning_rates)
+plt.figure(figsize=(5.5, 3.8))
+
+plt.plot(steps, lrs, linewidth=2)
+
 plt.xlabel("Steps")
 plt.ylabel("Learning Rate")
-plt.title("Learning Rate Schedule")
-plt.grid()
 
-plt.savefig("learning_rate_curve.png")
-print("✅ Saved learning_rate_curve.png")
+plt.title("Learning Rate Schedule", pad=10)
 
-# -------------------------------
-# 7. SHOW PLOTS (IMPORTANT)
-# -------------------------------
-plt.show()
+plt.gca().spines['top'].set_visible(False)
+plt.gca().spines['right'].set_visible(False)
 
-print("🎉 DONE")
+plt.tight_layout()
+plt.savefig("learning_rate_curve_paper.png", dpi=400)
+plt.close()
+
+print("✅ Ultra-clean professional plots saved (400 DPI)")

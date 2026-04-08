@@ -2,6 +2,7 @@ import os
 import threading
 import time
 import struct
+import uuid
 import numpy as np
 import serial
 import serial.tools.list_ports
@@ -85,12 +86,12 @@ def crc16(data: bytes) -> int:
 # ================= HELPERS =================
 
 def upload_image(image_path: Path) -> str:
-    object_name = f"csi/{image_path.name}"
+    object_name = f"csi/{int(time.time())}_{uuid.uuid4().hex}_{image_path.name}"
     with image_path.open("rb") as f:
         supabase.storage.from_(BUCKET_NAME).upload(
             path=object_name,
             file=f,
-            file_options={"content-type": "image/png", "upsert": "true"}
+            file_options={"content-type": "image/png", "upsert": "false"}
         )
     return object_name
 

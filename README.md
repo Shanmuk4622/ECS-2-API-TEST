@@ -70,6 +70,25 @@ with check (bucket_id = 'csi-images');
 
 If you get `policy already exists`, run the `drop policy if exists ...` lines first, then run create again.
 
+If uploads fail with policy errors, run this full reset block:
+
+```sql
+drop policy if exists "storage_read_anon" on storage.objects;
+drop policy if exists "storage_insert_anon" on storage.objects;
+
+create policy "storage_read_anon"
+on storage.objects
+for select
+to anon
+using (bucket_id = 'csi-images');
+
+create policy "storage_insert_anon"
+on storage.objects
+for insert
+to anon
+with check (bucket_id = 'csi-images');
+```
+
 ## Sender Machine Setup (Python)
 
 This setup is only for the CSI sender machine.
@@ -149,6 +168,10 @@ Because `index.html` is in repository root, deploy from root.
   Ensure [config.js](config.js) exists and has real values.
 - Python import errors:
   Install dependencies from [requirements.txt](requirements.txt).
+- Supabase upload shows `HTTP/2 400 Bad Request` and log contains `new row violates row-level security policy`:
+	1. Confirm bucket name is exactly `csi-images`.
+	2. Re-run the storage policy SQL above.
+	3. Pull latest code where image uploads use unique object names and no upsert.
 
 ## Security Note
 
