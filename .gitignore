@@ -20,6 +20,7 @@ output/
 *.jpg
 *.jpeg
 *.gif
+!web/image.png
 
 # OS / editor
 .DS_Store
