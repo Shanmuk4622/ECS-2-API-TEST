@@ -12,8 +12,31 @@
   <body>
     <main class="app">
       <header class="header">
-        <h1>CSI Live Monitor</h1>
-        <p>Latest CSI image + model outputs in near real time.</p>
+        <div>
+          <h1>CSI Live Monitor</h1>
+          <p>Latest CSI image + model outputs in near real time.</p>
+        </div>
+        <div class="header-controls">
+          <button id="historyToggleBtn" class="btn" type="button" aria-expanded="false">History</button>
+
+          <label class="control-group" for="historyLimit">
+            <span>Rows</span>
+            <select id="historyLimit" class="dropdown">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+
+          <label class="control-group" for="historySort">
+            <span>Order</span>
+            <select id="historySort" class="dropdown">
+              <option value="desc" selected>Newest</option>
+              <option value="asc">Oldest</option>
+            </select>
+          </label>
+        </div>
       </header>
 
       <section class="panel image-panel">
@@ -44,6 +67,12 @@
             <pre id="presenceResult">No data yet</pre>
           </article>
         </div>
+      </section>
+
+      <section id="historyPanel" class="panel history-panel hidden" aria-live="polite">
+        <h2>Prediction History</h2>
+        <p class="muted">Latest prediction rows from Supabase.</p>
+        <div id="historyList" class="history-list"></div>
       </section>
 
       <footer class="footer muted">
