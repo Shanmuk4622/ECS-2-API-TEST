@@ -35,7 +35,11 @@
                 <div class="hero-left">
                     <p class="hero-kicker">Signal health</p>
                     <h2 class="hero-title">Live polling is armed</h2>
-                    <p class="hero-copy">System polls your laptop model endpoints every second and stores real snapshots in browser history.</p>
+                    <p class="hero-copy">System polls multi-node model endpoints every second with auto-failover, storing real snapshots in browser history.</p>
+                    <div class="api-override">
+                        <input type="text" id="customApiInput" class="text-input" placeholder="Custom API URL (e.g. http://10...)" aria-label="Custom API URL" />
+                        <button id="setApiBtn" class="btn btn-ghost" type="button">Set API</button>
+                    </div>
                     <div class="hero-actions">
                         <button id="historyToggleBtn" class="btn" type="button" aria-expanded="false">Quick History</button>
                         <button id="refreshNowBtn" class="btn btn-ghost" type="button">Refresh Now</button>
@@ -43,9 +47,9 @@
                     </div>
                 </div>
                 <div class="hero-right">
-                    <div class="live-dot-wrap">
-                        <span class="live-dot"></span>
-                        <span>Live</span>
+                    <div id="liveDotWrap" class="live-dot-wrap">
+                        <span id="liveDot" class="live-dot"></span>
+                        <span id="liveText">Live Data</span>
                     </div>
                     <p id="status" class="status-text">Connecting...</p>
                 </div>

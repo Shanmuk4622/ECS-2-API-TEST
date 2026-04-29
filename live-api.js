@@ -1,5 +1,32 @@
 window.CSI_API = (() => {
-  const BASE_URL = "https://pasty-preaestival-romona.ngrok-free.dev";
+  const DEFAULT_SERVER_URLS = [
+    "http://10.74.89.201:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "https://pasty-preaestival-romona.ngrok-free.dev"
+  ];
+  let customUrl = localStorage.getItem("csi_custom_url") || "";
+  let SERVER_URLS = customUrl ? [customUrl, ...DEFAULT_SERVER_URLS] : [...DEFAULT_SERVER_URLS];
+  let activeUrlIndex = 0;
+
+  function setCustomUrl(url) {
+    let cleanUrl = url.trim();
+    if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+    }
+    
+    if (cleanUrl) {
+      localStorage.setItem("csi_custom_url", cleanUrl);
+      customUrl = cleanUrl;
+      SERVER_URLS = [cleanUrl, ...DEFAULT_SERVER_URLS];
+    } else {
+      localStorage.removeItem("csi_custom_url");
+      customUrl = "";
+      SERVER_URLS = [...DEFAULT_SERVER_URLS];
+    }
+    activeUrlIndex = 0;
+  }
+
   const HISTORY_KEY = "csi_live_history_v1";
   const MAX_HISTORY_ROWS = 600;
 
@@ -52,35 +79,67 @@ window.CSI_API = (() => {
     return new Date(ts).toLocaleString();
   }
 
-  async function fetchLatest(path) {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: {
-        "ngrok-skip-browser-warning": "true"
-      }
-    });
+  async function fetchBothLatest() {
+    let lastError = null;
+    const MAX_RETRIES = 2; // Try each server up to 3 times total
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      for (let i = 0; i < SERVER_URLS.length; i++) {
+        const index = (activeUrlIndex + i) % SERVER_URLS.length;
+        const baseUrl = SERVER_URLS[index];
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout per request
+
+          const options = {
+            headers: {
+              "ngrok-skip-browser-warning": "true"
+            },
+            signal: controller.signal
+          };
+
+          const [presenceRes, activityRes] = await Promise.all([
+            fetch(`${baseUrl}/latest/presence`, options),
+            fetch(`${baseUrl}/latest/activity`, options)
+          ]);
+
+          clearTimeout(timeoutId);
+
+          if (!presenceRes.ok || !activityRes.ok) {
+            throw new Error(`HTTP Error: presence=${presenceRes.status}, activity=${activityRes.status} from ${baseUrl}`);
+          }
+
+          const [presenceRaw, activityRaw] = await Promise.all([
+            presenceRes.json(),
+            activityRes.json()
+          ]);
+
+          // Update active URL if successful so subsequent calls use it directly
+          activeUrlIndex = index;
+
+          return {
+            presence: normalizePrediction(presenceRaw),
+            activity: normalizePrediction(activityRaw),
+            raw: {
+              presence: presenceRaw,
+              activity: activityRaw
+            },
+            fetchedAt: Date.now()
+          };
+        } catch (err) {
+          lastError = err;
+          // Loop continues to the next server URL
+        }
+      }
+
+      if (attempt < MAX_RETRIES) {
+        // Wait briefly before retrying all servers again
+        await new Promise(r => setTimeout(r, 500));
+      }
     }
 
-    return res.json();
-  }
-
-  async function fetchBothLatest() {
-    const [presenceRaw, activityRaw] = await Promise.all([
-      fetchLatest("/latest/presence"),
-      fetchLatest("/latest/activity")
-    ]);
-
-    return {
-      presence: normalizePrediction(presenceRaw),
-      activity: normalizePrediction(activityRaw),
-      raw: {
-        presence: presenceRaw,
-        activity: activityRaw
-      },
-      fetchedAt: Date.now()
-    };
+    throw new Error(`All endpoints failed. Last error: ${lastError?.message}`);
   }
 
   function loadHistory() {
@@ -132,7 +191,13 @@ window.CSI_API = (() => {
   }
 
   return {
-    BASE_URL,
+    get BASE_URL() {
+      return SERVER_URLS[activeUrlIndex];
+    },
+    get customUrl() {
+      return customUrl;
+    },
+    setCustomUrl,
     fetchBothLatest,
     formatTime,
     normalizeTimestamp,

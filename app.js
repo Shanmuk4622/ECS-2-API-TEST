@@ -15,6 +15,22 @@ const activityTimeEl = document.getElementById("activityTime");
 const presenceTimeEl = document.getElementById("presenceTime");
 const statusEl = document.getElementById("status");
 const refreshNowBtn = document.getElementById("refreshNowBtn");
+const customApiInput = document.getElementById("customApiInput");
+const setApiBtn = document.getElementById("setApiBtn");
+const liveDotWrap = document.getElementById("liveDotWrap");
+const liveDot = document.getElementById("liveDot");
+const liveText = document.getElementById("liveText");
+
+if (customApiInput) {
+  customApiInput.value = api.customUrl || "";
+}
+
+setApiBtn?.addEventListener("click", () => {
+  const url = customApiInput.value.trim();
+  api.setCustomUrl(url);
+  setStatus("API Override Applied. Reconnecting...");
+  refreshLatest();
+});
 
 const historyToggleBtn = document.getElementById("historyToggleBtn");
 const historyPanelEl = document.getElementById("historyPanel");
@@ -149,12 +165,28 @@ async function refreshLatest() {
     api.appendHistory(snapshot);
 
     animateUpdate();
-    setStatus(`Live from ${api.BASE_URL} at ${new Date().toLocaleTimeString()}`);
+
+    if (liveDotWrap && liveDot && liveText) {
+      liveDotWrap.classList.remove("error");
+      liveDot.classList.remove("error");
+      liveText.textContent = "Live Data";
+      
+      liveDotWrap.classList.remove("reactive");
+      void liveDotWrap.offsetWidth; // trigger reflow
+      liveDotWrap.classList.add("reactive");
+    }
+
+    setStatus(`Source: ${api.BASE_URL} at ${new Date().toLocaleTimeString()}`);
 
     if (historyVisible) {
       refreshHistoryPanel();
     }
   } catch (error) {
+    if (liveDotWrap && liveDot && liveText) {
+      liveDotWrap.classList.add("error");
+      liveDot.classList.add("error");
+      liveText.textContent = "Offline";
+    }
     const message = error instanceof Error ? error.message : "Unknown error";
     setStatus(`Endpoint offline or unreachable: ${message}`, true);
   } finally {
